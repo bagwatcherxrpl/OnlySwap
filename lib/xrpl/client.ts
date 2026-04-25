@@ -44,5 +44,10 @@ export async function withXrplClient<T>(fn: (client: Client) => Promise<T>): Pro
       throw lastError instanceof Error ? lastError : new Error("Unable to connect to XRPL RPC endpoint.");
     }
   }
-  return fn(singleton);
+
+  const connected = singleton;
+  if (!connected?.isConnected()) {
+    throw new Error("Unable to connect to XRPL RPC endpoint.");
+  }
+  return fn(connected);
 }

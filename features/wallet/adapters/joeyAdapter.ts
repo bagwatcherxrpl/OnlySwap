@@ -34,6 +34,7 @@ function getOrCreateProvider() {
   joeyProvider = new core.provider.Provider({
     projectId: getProjectId(),
     defaultChain: DEFAULT_CHAIN_ID,
+    namespaces: core.constants.chains.xrplNamespace,
     metadata: {
       name: "OnlySwap",
       description: "OnlySwap",

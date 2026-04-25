@@ -17,6 +17,15 @@ import { prepareSwapTransactions } from "@/features/swap/services/prepareSwapTra
 import { walletAdapters } from "@/features/wallet/adapters";
 import { useWalletStore } from "@/features/wallet/state/useWalletStore";
 import { assetDisplayLabel, parseAssetIdentifier } from "@/lib/assets/parser";
+import type { Asset } from "@/lib/assets/types";
+
+function assetsEqual(a: Asset, b: Asset): boolean {
+  if (a.kind === "native" && b.kind === "native") return true;
+  if (a.kind === "issued" && b.kind === "issued") {
+    return a.currency === b.currency && a.issuer === b.issuer;
+  }
+  return false;
+}
 
 function normalizeAmountForInput(value: string): string {
   const trimmed = value.trim();
@@ -44,14 +53,8 @@ export function SwapCard() {
     const parsedFrom = parseAssetIdentifier(fromParam);
     const parsedTo = parseAssetIdentifier(toParam);
     if (!parsedFrom.ok || !parsedTo.ok) return;
-    if (parsedFrom.asset.kind === parsedTo.asset.kind) {
-      if (
-        parsedFrom.asset.kind === "native" ||
-        (parsedFrom.asset.currency === parsedTo.asset.currency &&
-          parsedFrom.asset.issuer === parsedTo.asset.issuer)
-      ) {
-        return;
-      }
+    if (assetsEqual(parsedFrom.asset, parsedTo.asset)) {
+      return;
     }
 
     const state = useSwapStore.getState();
@@ -59,24 +62,14 @@ export function SwapCard() {
     const currentTo = state.toAsset;
 
     if (
-      (currentFrom.kind === parsedTo.asset.kind &&
-        (currentFrom.kind === "native" ||
-          (currentFrom.currency === parsedTo.asset.currency &&
-            currentFrom.issuer === parsedTo.asset.issuer))) &&
-      (currentTo.kind === parsedFrom.asset.kind &&
-        (currentTo.kind === "native" ||
-          (currentTo.currency === parsedFrom.asset.currency &&
-            currentTo.issuer === parsedFrom.asset.issuer)))
+      assetsEqual(currentFrom, parsedTo.asset) &&
+      assetsEqual(currentTo, parsedFrom.asset)
     ) {
       state.switchAssets();
       return;
     }
 
-    const fromEqualsCurrentTo =
-      currentTo.kind === parsedFrom.asset.kind &&
-      (currentTo.kind === "native" ||
-        (currentTo.currency === parsedFrom.asset.currency &&
-          currentTo.issuer === parsedFrom.asset.issuer));
+    const fromEqualsCurrentTo = assetsEqual(currentTo, parsedFrom.asset);
 
     if (fromEqualsCurrentTo) {
       state.setAsset("to", parsedTo.asset);

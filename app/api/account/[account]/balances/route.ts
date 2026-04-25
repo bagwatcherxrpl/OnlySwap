@@ -39,10 +39,15 @@ export async function GET(
         try {
           const serverState = await client.request({ command: "server_state" });
           const validatedLedger = serverState.result.state?.validated_ledger;
-          const base = validatedLedger?.reserve_base_xrp;
-          const inc = validatedLedger?.reserve_inc_xrp;
-          if (base != null) reserveBaseXrp = new Decimal(String(base));
-          if (inc != null) reserveIncrementXrp = new Decimal(String(inc));
+          // server_state uses drops; server_info uses *_xrp fields.
+          const baseDrops = validatedLedger?.reserve_base;
+          const incDrops = validatedLedger?.reserve_inc;
+          if (baseDrops != null) {
+            reserveBaseXrp = new Decimal(String(baseDrops)).div(1_000_000);
+          }
+          if (incDrops != null) {
+            reserveIncrementXrp = new Decimal(String(incDrops)).div(1_000_000);
+          }
         } catch {
           // Keep safe mainnet defaults when reserve lookup fails.
         }

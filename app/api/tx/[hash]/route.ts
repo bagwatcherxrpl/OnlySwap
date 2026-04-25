@@ -67,7 +67,9 @@ export async function GET(
     const tx = await withXrplClient((client) =>
       client.request({ command: "tx", transaction: hash, binary: false }),
     );
-    const tradeSizeXrp = extractTradeSizeXrp(tx.result as Record<string, unknown>);
+    const tradeSizeXrp = extractTradeSizeXrp(
+      tx.result as unknown as Record<string, unknown>,
+    );
     if (tradeSizeXrp) {
       publishTrade({
         txHash: hash.toUpperCase(),
