@@ -6,6 +6,16 @@ import { isQuoteExpired, prepareSwapSchema } from "@/lib/validation/swap";
 import { withXrplClient } from "@/lib/xrpl/client";
 import { buildQuote } from "@/lib/xrpl/quoteService";
 
+function resolveSourceTag(): number | null {
+  const raw = process.env.ONLYSWAP_SOURCE_TAG?.trim();
+  if (!raw) return null;
+  if (!/^\d+$/.test(raw)) return null;
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 0xffff_ffff) return null;
+  return parsed;
+}
+
 async function hasTrustline(
   account: string,
   currency: string,
@@ -82,6 +92,10 @@ export async function POST(req: NextRequest) {
     const promoNoFee = body.walletId === "xaman" || body.walletId === "joey";
     const effectiveServiceFeeDrops = promoNoFee ? "0" : quote.serviceFeeDrops;
     const effectiveServiceFeeXrp = promoNoFee ? "0" : quote.serviceFeeXrp;
+    const sourceTag = resolveSourceTag();
+    if (sourceTag === null) {
+      return NextResponse.json({ error: "Source tag is not configured." }, { status: 500 });
+    }
 
     const treasury = process.env.ONLYSWAP_TREASURY_WALLET;
     if (!treasury && !promoNoFee) {
@@ -97,6 +111,7 @@ export async function POST(req: NextRequest) {
           Account: body.account,
           Destination: treasury,
           Amount: effectiveServiceFeeDrops,
+          SourceTag: sourceTag,
           DestinationTag: 0,
         },
       });
@@ -115,6 +130,7 @@ export async function POST(req: NextRequest) {
           from.asset.kind === "native"
             ? xrpToDrops(body.inputAmount)
             : { currency: from.asset.currency, issuer: from.asset.issuer, value: body.inputAmount },
+        SourceTag: sourceTag,
         Flags: 131072,
       },
     });

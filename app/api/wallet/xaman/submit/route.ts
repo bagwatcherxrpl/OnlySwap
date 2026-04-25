@@ -24,6 +24,7 @@ const paymentTxSchema = z
     Destination: accountSchema,
     Amount: amountSchema,
     SendMax: amountSchema.optional(),
+    SourceTag: z.number().int().nonnegative().optional(),
     DestinationTag: z.number().int().nonnegative().optional(),
     Flags: z.number().int().nonnegative().optional(),
   })

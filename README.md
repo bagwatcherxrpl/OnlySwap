@@ -28,6 +28,7 @@ Copy `.env.example` to `.env.local` and set:
 
 - `XRPL_RPC_URL`: XRPL endpoint (defaults to `wss://xrplcluster.com`)
 - `ONLYSWAP_TREASURY_WALLET`: fee recipient wallet
+- `ONLYSWAP_SOURCE_TAG`: numeric source tag attached to prepared swap payments
 - `XAMAN_API_KEY`: Xaman developer API key (server-side only)
 - `XAMAN_API_SECRET`: Xaman developer API secret (server-side only)
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`: Reown WalletConnect project id used by Joey
