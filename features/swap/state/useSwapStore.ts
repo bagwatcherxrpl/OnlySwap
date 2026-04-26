@@ -40,7 +40,8 @@ export const useSwapStore = create<Store>((set, get) => ({
   txError: null,
   selectorOpen: null,
   setInputAmount: (value) => {
-    const sanitized = value.replace(/[^\d.]/g, "");
+    const normalizedDecimal = value.replace(/,/g, ".");
+    const sanitized = normalizedDecimal.replace(/[^\d.]/g, "");
     const firstDotIndex = sanitized.indexOf(".");
     const normalized =
       firstDotIndex === -1

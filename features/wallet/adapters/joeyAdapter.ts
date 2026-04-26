@@ -110,9 +110,9 @@ export class JoeyAdapter implements WalletAdapter {
   private chainId: string = DEFAULT_CHAIN_ID;
 
   async connect(): Promise<void> {
+    const popup = this.openRequestWindow();
     const provider = getOrCreateProvider();
     await ensureManagerProvider(provider);
-    const popup = this.openDesktopPopup();
     const uriPromise = this.waitForWalletConnectUri(provider, 12_000);
     const connectPromise = provider.connect({ openModal: false });
     this.renderPopupForUri(uriPromise, popup, "Connect Joey");
@@ -192,8 +192,11 @@ export class JoeyAdapter implements WalletAdapter {
     return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
   }
 
-  private openDesktopPopup(): Window | null {
-    if (typeof window === "undefined" || this.isMobile()) return null;
+  private openRequestWindow(): Window | null {
+    if (typeof window === "undefined") return null;
+    if (this.isMobile()) {
+      return window.open("", "_blank", "noopener,noreferrer");
+    }
     return window.open("", "joey-popup", "popup=yes,width=420,height=640");
   }
 
@@ -252,7 +255,16 @@ export class JoeyAdapter implements WalletAdapter {
     deeplink: string;
   }) {
     if (typeof window === "undefined") return;
-    if (this.isMobile() || !popup || popup.closed) {
+    if (this.isMobile()) {
+      if (popup && !popup.closed) {
+        popup.location.href = deeplink;
+      } else {
+        // Fallback for strict popup blockers: continue in current tab.
+        window.location.href = deeplink;
+      }
+      return;
+    }
+    if (!popup || popup.closed) {
       window.open(deeplink, "_blank", "noopener,noreferrer");
       return;
     }
