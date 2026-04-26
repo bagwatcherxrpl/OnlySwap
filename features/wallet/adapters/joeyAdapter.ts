@@ -280,14 +280,7 @@ export class JoeyAdapter implements WalletAdapter {
 
     this.openDeeplink(detailsResult.data.deeplink, popup);
 
-    try {
-      await provider.listenForConnect();
-    } catch {
-      this.safeClose(popup);
-      throw new Error("Joey connection failed.");
-    }
-
-    const session = provider.manager.provider?.session;
+    const session = await this.waitForSession(provider, 90_000);
     if (!session) {
       this.safeClose(popup);
       throw new Error("Joey connected but session was not available.");
@@ -295,6 +288,29 @@ export class JoeyAdapter implements WalletAdapter {
 
     this.safeClose(popup);
     this.applySession(session);
+  }
+
+  private async waitForSession(
+    provider: InstanceType<typeof core.provider.Provider>,
+    timeoutMs: number,
+  ): Promise<SessionTypes.Struct | null> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const activeSession = provider.manager.provider?.session;
+      if (activeSession) {
+        return activeSession;
+      }
+
+      // Some wallet/browser combinations do not reliably dispatch connect events
+      // after returning to the tab, so we poll for an active session as fallback.
+      await Promise.race([
+        provider.listenForConnect().catch(() => false),
+        new Promise((resolve) => setTimeout(resolve, 800)),
+      ]);
+    }
+
+    return null;
   }
 
   private openDeeplink(deeplink: string, popup: Window | null): void {

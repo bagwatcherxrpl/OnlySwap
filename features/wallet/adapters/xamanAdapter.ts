@@ -6,7 +6,7 @@ export class XamanAdapter implements WalletAdapter {
   private account: string | null = null;
 
   async connect(): Promise<void> {
-    const connectPopup = this.openRequestWindow();
+    const connectPopup = this.isMobile() ? null : this.openRequestWindow();
     const response = await fetch("/api/wallet/xaman/connect", { method: "POST" });
     const data = (await response.json()) as { error?: string; uuid?: string; next?: string | null; qrPng?: string | null };
     if (!response.ok || !data.uuid) {
@@ -39,7 +39,7 @@ export class XamanAdapter implements WalletAdapter {
 
   async signAndSubmit(tx: PreparedTx): Promise<{ txHash?: string; accepted: boolean }> {
     if (!tx) return { accepted: false };
-    const signingPopup = this.openRequestWindow();
+    const signingPopup = this.isMobile() ? null : this.openRequestWindow();
     const response = await fetch("/api/wallet/xaman/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,12 +127,9 @@ export class XamanAdapter implements WalletAdapter {
     const safeQr = qrPng ? this.normalizeExternalUrl(qrPng, ["https:"]) : null;
 
     if (this.isMobile()) {
-      if (popup && !popup.closed) {
-        popup.location.href = safeNext;
-      } else {
-        // Fallback for strict popup blockers: continue in current tab.
-        window.location.href = safeNext;
-      }
+      // Mobile browsers can block app intents from secondary tabs.
+      // Use top-level navigation in the active tab.
+      window.location.assign(safeNext);
       return;
     }
 
