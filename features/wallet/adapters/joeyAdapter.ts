@@ -110,7 +110,7 @@ export class JoeyAdapter implements WalletAdapter {
   private chainId: string = DEFAULT_CHAIN_ID;
 
   async connect(): Promise<void> {
-    const popup = this.openRequestWindow();
+    const popup = this.isMobile() ? null : this.openRequestWindow();
     const provider = getOrCreateProvider();
     await ensureManagerProvider(provider);
     if (this.isMobile()) {
@@ -300,11 +300,9 @@ export class JoeyAdapter implements WalletAdapter {
   private openDeeplink(deeplink: string, popup: Window | null): void {
     if (typeof window === "undefined") return;
     if (this.isMobile()) {
-      if (popup && !popup.closed) {
-        popup.location.href = deeplink;
-      } else {
-        window.location.href = deeplink;
-      }
+      // Mobile browsers often block custom-scheme launches from secondary tabs.
+      // Use top-level navigation instead of opening/navigating a popup tab.
+      window.location.assign(deeplink);
       return;
     }
     if (!popup || popup.closed) {
