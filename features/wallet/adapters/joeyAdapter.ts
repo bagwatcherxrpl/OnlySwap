@@ -113,6 +113,11 @@ export class JoeyAdapter implements WalletAdapter {
     const popup = this.openRequestWindow();
     const provider = getOrCreateProvider();
     await ensureManagerProvider(provider);
+    if (this.isMobile()) {
+      await this.connectOnMobile(provider, popup);
+      return;
+    }
+
     const uriPromise = this.waitForWalletConnectUri(provider, 12_000);
     const connectPromise = provider.connect({ openModal: false });
     this.renderPopupForUri(uriPromise, popup, "Connect Joey");
@@ -122,15 +127,7 @@ export class JoeyAdapter implements WalletAdapter {
     if (result.error || !result.data) {
       throw new Error(result.error?.message ?? "Joey connection failed.");
     }
-
-    const session = result.data;
-    const account = extractAccount(session);
-    if (!account) {
-      throw new Error("Joey connected but no XRPL account was returned.");
-    }
-    this.sessionId = session.topic;
-    this.chainId = session.namespaces?.xrpl?.accounts?.[0]?.split(":").slice(0, 2).join(":") || DEFAULT_CHAIN_ID;
-    this.account = account;
+    this.applySession(result.data);
   }
 
   async disconnect(): Promise<void> {
@@ -268,6 +265,65 @@ export class JoeyAdapter implements WalletAdapter {
       });
   }
 
+  private async connectOnMobile(
+    provider: InstanceType<typeof core.provider.Provider>,
+    popup: Window | null,
+  ): Promise<void> {
+    const detailsResult = await provider.generateConnectionDetails({
+      openModal: false,
+      walletId: JOEY_WALLET_PROJECT_ID,
+    });
+    if (detailsResult.error || !detailsResult.data) {
+      this.safeClose(popup);
+      throw new Error(detailsResult.error?.message ?? "Could not initialize Joey mobile connection.");
+    }
+
+    this.openDeeplink(detailsResult.data.deeplink, popup);
+
+    try {
+      await provider.listenForConnect();
+    } catch {
+      this.safeClose(popup);
+      throw new Error("Joey connection failed.");
+    }
+
+    const session = provider.manager.provider?.session;
+    if (!session) {
+      this.safeClose(popup);
+      throw new Error("Joey connected but session was not available.");
+    }
+
+    this.safeClose(popup);
+    this.applySession(session);
+  }
+
+  private openDeeplink(deeplink: string, popup: Window | null): void {
+    if (typeof window === "undefined") return;
+    if (this.isMobile()) {
+      if (popup && !popup.closed) {
+        popup.location.href = deeplink;
+      } else {
+        window.location.href = deeplink;
+      }
+      return;
+    }
+    if (!popup || popup.closed) {
+      window.open(deeplink, "_blank", "noopener,noreferrer");
+      return;
+    }
+    popup.location.href = deeplink;
+  }
+
+  private applySession(session: SessionTypes.Struct): void {
+    const account = extractAccount(session);
+    if (!account) {
+      throw new Error("Joey connected but no XRPL account was returned.");
+    }
+    this.sessionId = session.topic;
+    this.chainId = session.namespaces?.xrpl?.accounts?.[0]?.split(":").slice(0, 2).join(":") || DEFAULT_CHAIN_ID;
+    this.account = account;
+  }
+
   private renderPopup({
     popup,
     title,
@@ -280,17 +336,8 @@ export class JoeyAdapter implements WalletAdapter {
     deeplink: string;
   }) {
     if (typeof window === "undefined") return;
-    if (this.isMobile()) {
-      if (popup && !popup.closed) {
-        popup.location.href = deeplink;
-      } else {
-        // Fallback for strict popup blockers: continue in current tab.
-        window.location.href = deeplink;
-      }
-      return;
-    }
-    if (!popup || popup.closed) {
-      window.open(deeplink, "_blank", "noopener,noreferrer");
+    if (this.isMobile() || !popup || popup.closed) {
+      this.openDeeplink(deeplink, popup);
       return;
     }
 
