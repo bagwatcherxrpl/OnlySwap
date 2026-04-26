@@ -131,6 +131,7 @@ export class JoeyAdapter implements WalletAdapter {
   }
 
   async disconnect(): Promise<void> {
+    await this.restoreSessionFromProvider();
     if (!this.sessionId) {
       this.account = null;
       return;
@@ -146,6 +147,7 @@ export class JoeyAdapter implements WalletAdapter {
   }
 
   async getAccount(): Promise<string | null> {
+    await this.restoreSessionFromProvider();
     return this.account;
   }
 
@@ -156,8 +158,9 @@ export class JoeyAdapter implements WalletAdapter {
 
   async signAndSubmit(tx: PreparedTx): Promise<{ txHash?: string; accepted: boolean }> {
     if (!tx) return { accepted: false };
+    await this.restoreSessionFromProvider();
     if (!this.sessionId) {
-      throw new Error("Joey is not connected.");
+      throw new Error("Joey session expired. Please reconnect your wallet.");
     }
 
     const provider = getOrCreateProvider();
@@ -336,6 +339,23 @@ export class JoeyAdapter implements WalletAdapter {
     this.sessionId = session.topic;
     this.chainId = session.namespaces?.xrpl?.accounts?.[0]?.split(":").slice(0, 2).join(":") || DEFAULT_CHAIN_ID;
     this.account = account;
+  }
+
+  private async restoreSessionFromProvider(): Promise<void> {
+    const provider = getOrCreateProvider();
+    await ensureManagerProvider(provider);
+
+    const activeSession = provider.manager.provider?.session;
+    if (activeSession) {
+      this.applySession(activeSession);
+      return;
+    }
+
+    const sessionIterator = provider.sessions.values();
+    const firstStored = sessionIterator.next().value as { data?: SessionTypes.Struct } | undefined;
+    if (firstStored?.data) {
+      this.applySession(firstStored.data);
+    }
   }
 
   private renderPopup({
