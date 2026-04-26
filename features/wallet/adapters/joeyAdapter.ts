@@ -4,6 +4,7 @@ import { PreparedTx, WalletAdapter } from "@/features/wallet/adapters/types";
 
 const JOEY_WALLET_PROJECT_ID = "d9f5432e932c6fad8e19a0cea9d4a3372a84aed16e98a52e6655dd2821a63404";
 const JOEY_DEEPLINK_PREFIX = "joey://settings/wc?uri=";
+const JOEY_APP_DEEPLINK = "joey://";
 const DEFAULT_CHAIN_ID = core.constants.chains.xrpl.mainnet.id;
 
 let joeyProvider: InstanceType<typeof core.provider.Provider> | null = null;
@@ -164,7 +165,7 @@ export class JoeyAdapter implements WalletAdapter {
     }
 
     const provider = getOrCreateProvider();
-    const response = await provider.api.signTransaction(
+    const signingRequest = provider.api.signTransaction(
       {
         tx_json: tx as never,
         options: { autofill: true, submit: true },
@@ -174,6 +175,10 @@ export class JoeyAdapter implements WalletAdapter {
         chainId: this.chainId,
       },
     );
+    if (this.isMobile()) {
+      this.openDeeplink(JOEY_APP_DEEPLINK, null);
+    }
+    const response = await signingRequest;
 
     if (response.error || !response.data) {
       throw new Error(response.error?.message ?? "Joey signing request failed.");

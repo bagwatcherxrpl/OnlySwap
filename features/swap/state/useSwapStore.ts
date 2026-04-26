@@ -31,7 +31,7 @@ type Store = {
 export const useSwapStore = create<Store>((set, get) => ({
   fromAsset: PRELISTED_TOKENS[0],
   toAsset: PRELISTED_TOKENS[1],
-  inputAmount: "",
+  inputAmount: "1",
   quote: null,
   quoteLoading: false,
   quoteError: null,
