@@ -344,6 +344,9 @@ export class JoeyAdapter implements WalletAdapter {
   private async restoreSessionFromProvider(): Promise<void> {
     const provider = getOrCreateProvider();
     await ensureManagerProvider(provider);
+    if (provider.manager.provider && provider.sessions.size === 0) {
+      provider.manager.setData(provider.manager.provider);
+    }
 
     const activeSession = provider.manager.provider?.session;
     if (activeSession) {

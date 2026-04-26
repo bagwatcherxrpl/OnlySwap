@@ -458,6 +458,8 @@ export function SwapCard() {
               swap.setTxStatus("error", "Wallet confirmation was closed.");
             } else if (message.toLowerCase().includes("rejected")) {
               swap.setTxStatus("error", "Wallet request was rejected.");
+            } else if (message) {
+              swap.setTxStatus("error", message);
             } else {
               swap.setTxStatus("error", "Swap submission failed.");
             }
