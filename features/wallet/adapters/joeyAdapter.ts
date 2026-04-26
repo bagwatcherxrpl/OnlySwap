@@ -210,14 +210,21 @@ export class JoeyAdapter implements WalletAdapter {
         return;
       }
 
-      let timeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-        cleanup();
-        reject(new Error("Could not get WalletConnect URI."));
-      }, timeoutMs);
+      const startedAt = Date.now();
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+      const providerEmitter = provider as unknown as {
+        on?: (event: string, listener: (value: unknown) => void) => void;
+        off?: (event: string, listener: (value: unknown) => void) => void;
+      };
 
       const cleanup = () => {
         if (timeout) clearTimeout(timeout);
         timeout = null;
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null;
+        providerEmitter.off?.("display_uri", onDisplayUri);
         provider.manager.provider?.off("display_uri", onDisplayUri);
       };
 
@@ -227,6 +234,24 @@ export class JoeyAdapter implements WalletAdapter {
         resolve(uri);
       };
 
+      timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error("Could not get WalletConnect URI."));
+      }, timeoutMs);
+
+      pollTimer = setInterval(() => {
+        if (provider.uri) {
+          cleanup();
+          resolve(provider.uri);
+          return;
+        }
+        if (Date.now() - startedAt >= timeoutMs) {
+          cleanup();
+          reject(new Error("Could not get WalletConnect URI."));
+        }
+      }, 150);
+
+      providerEmitter.on?.("display_uri", onDisplayUri);
       provider.manager.provider?.on("display_uri", onDisplayUri);
     });
   }
