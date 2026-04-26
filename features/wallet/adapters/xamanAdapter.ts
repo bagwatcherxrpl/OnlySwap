@@ -6,7 +6,7 @@ export class XamanAdapter implements WalletAdapter {
   private account: string | null = null;
 
   async connect(): Promise<void> {
-    const connectPopup = this.openDesktopPopup();
+    const connectPopup = this.openRequestWindow();
     const response = await fetch("/api/wallet/xaman/connect", { method: "POST" });
     const data = (await response.json()) as { error?: string; uuid?: string; next?: string | null; qrPng?: string | null };
     if (!response.ok || !data.uuid) {
@@ -39,7 +39,7 @@ export class XamanAdapter implements WalletAdapter {
 
   async signAndSubmit(tx: PreparedTx): Promise<{ txHash?: string; accepted: boolean }> {
     if (!tx) return { accepted: false };
-    const signingPopup = this.openDesktopPopup();
+    const signingPopup = this.openRequestWindow();
     const response = await fetch("/api/wallet/xaman/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -102,8 +102,11 @@ export class XamanAdapter implements WalletAdapter {
     return /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
   }
 
-  private openDesktopPopup(): Window | null {
-    if (typeof window === "undefined" || this.isMobile()) return null;
+  private openRequestWindow(): Window | null {
+    if (typeof window === "undefined") return null;
+    if (this.isMobile()) {
+      return window.open("", "_blank", "noopener,noreferrer");
+    }
     return window.open("", "xaman-popup", "popup=yes,width=420,height=640");
   }
 
@@ -124,7 +127,12 @@ export class XamanAdapter implements WalletAdapter {
     const safeQr = qrPng ? this.normalizeExternalUrl(qrPng, ["https:"]) : null;
 
     if (this.isMobile()) {
-      window.open(safeNext, "_blank", "noopener,noreferrer");
+      if (popup && !popup.closed) {
+        popup.location.href = safeNext;
+      } else {
+        // Fallback for strict popup blockers: continue in current tab.
+        window.location.href = safeNext;
+      }
       return;
     }
 
